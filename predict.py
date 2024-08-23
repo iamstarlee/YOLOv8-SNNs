@@ -49,7 +49,7 @@ if __name__ == "__main__":
     #   test_interval和fps_image_path仅在mode='fps'有效
     #----------------------------------------------------------------------------------------------------------#
     test_interval   = 100
-    fps_image_path  = "imgs_in/street.jpg"
+    fps_image_path  = "imgs_in/img0001.png"
     #-------------------------------------------------------------------------#
     #   dir_origin_path     指定了用于检测的图片的文件夹路径
     #   dir_save_path       指定了检测完图片的保存路径
@@ -81,7 +81,8 @@ if __name__ == "__main__":
         比如判断if predicted_class == 'car': 即可判断当前目标是否为车，然后记录数量即可。利用draw.text即可写字。
         '''
         while True:
-            img = input('Input image filename:')
+            # img = input('Input image filename:')
+            img = 'imgs_in/img0001.png'
             try:
                 image = Image.open(img)
             except:
