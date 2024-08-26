@@ -11,6 +11,7 @@ from nets.yolo import YoloBody
 from utils.utils import (cvtColor, get_classes, preprocess_input,
                          resize_image, show_config)
 from utils.utils_bbox import DecodeBox
+# os.environ["CUDA_VISIBLE_DEVICES"] = '0'
 
 '''
 训练自己的数据集必看注释！
@@ -25,7 +26,7 @@ class YOLO(object):
         #   验证集损失较低不代表mAP较高，仅代表该权值在验证集上泛化性能较好。
         #   如果出现shape不匹配，同时要注意训练时的model_path和classes_path参数的修改
         #--------------------------------------------------------------------------#
-        "model_path"        : 'weights/yolov8_s.pt',
+        "model_path"        : 'model_data/yolov8_s.pt',
         "classes_path"      : 'model_data/coco_classes.txt',
         #---------------------------------------------------------------------#
         #   输入图片的大小，必须为32的倍数。
@@ -100,14 +101,20 @@ class YOLO(object):
         #   建立yolo模型，载入yolo模型的权重
         #---------------------------------------------------#
         self.net    = YoloBody(self.input_shape, self.num_classes, self.phi)
+
+        # if torch.cuda.device_count() > 1:
+        #     print(f"Let's use {torch.cuda.device_count()} GPUs!")
+        #     self.net = nn.parallel.DataParallel(self.net.cuda(), device_ids=[0, 1])
+        # else:
+        #     device      = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        #     self.net.to(device)
         
-        device      = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        self.net.load_state_dict(torch.load(self.model_path, map_location=device))
+        self.net.load_state_dict(torch.load(self.model_path))
         self.net    = self.net.fuse().eval()
         print('{} model, and classes loaded.'.format(self.model_path))
         if not onnx:
             if self.cuda:
-                self.net = nn.DataParallel(self.net)
+                # self.net = nn.DataParallel(self.net)
                 self.net = self.net.cuda()
 
     #---------------------------------------------------#
@@ -141,7 +148,9 @@ class YOLO(object):
             #---------------------------------------------------------#
             #   将图像输入网络当中进行预测！
             #---------------------------------------------------------#
+            print("Yes")
             outputs = self.net(images)
+            print("No")
             outputs = self.bbox_util.decode_box(outputs)
             #---------------------------------------------------------#
             #   将预测框进行堆叠，然后进行非极大抑制
@@ -206,18 +215,19 @@ class YOLO(object):
 
             label = '{} {:.2f}'.format(predicted_class, score)
             draw = ImageDraw.Draw(image)
-            label_size = draw.textsize(label, font)
+            _, _, width, height = draw.textbbox((0,0), text = label, font = font)
+            # label_size = draw.textsize(label, font)
             label = label.encode('utf-8')
             print(label, top, left, bottom, right)
             
-            if top - label_size[1] >= 0:
-                text_origin = np.array([left, top - label_size[1]])
+            if top - height >= 0:
+                text_origin = np.array([left, top - height])
             else:
                 text_origin = np.array([left, top + 1])
-
+            print(f"first is {text_origin[0]}, and second is {text_origin[1]}")
             for i in range(thickness):
                 draw.rectangle([left + i, top + i, right - i, bottom - i], outline=self.colors[c])
-            draw.rectangle([tuple(text_origin), tuple(text_origin + label_size)], fill=self.colors[c])
+            draw.rectangle([tuple(text_origin), tuple([text_origin[0] + width, text_origin[1] + height])], fill=self.colors[c])
             draw.text(text_origin, str(label,'UTF-8'), fill=(0, 0, 0), font=font)
             del draw
 
