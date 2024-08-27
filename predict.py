@@ -81,17 +81,27 @@ if __name__ == "__main__":
         4、如果想要在预测图上写额外的字，比如检测到的特定目标的数量，可以进入yolo.detect_image函数，在绘图部分对predicted_class进行判断，
         比如判断if predicted_class == 'car': 即可判断当前目标是否为车，然后记录数量即可。利用draw.text即可写字。
         '''
-        while True:
-            img = input('Input image filename:')
-            # img = 'imgs_in/img0001.png'
-            try:
-                image = Image.open(img)
-            except:
-                print('Open Error! Try again!')
-                continue
-            else:
-                r_image = yolo.detect_image(image, crop = crop, count=count)
-                r_image.save("imgs_out/saved.png")
+        # while True:
+        #     img = input('Input image filename:')
+        #     try:
+        #         image = Image.open(img)
+        #     except:
+        #         print('Open Error! Try again!')
+        #         continue
+        #     else:
+        #         # r_image = yolo.detect_image(image, crop = crop, count=count)
+        #         r_image = yolo.detect_image_pose(image, crop = crop, count=count)
+        #         r_image.save("imgs_out/saved.png")
+
+        img = 'imgs_in/img0001.png'
+        try:
+            image = Image.open(img)
+        except:
+            print('Open Error! Try again!')
+        else:
+            # r_image = yolo.detect_image(image, crop = crop, count=count)
+            r_image = yolo.detect_image_pose(image, crop = crop, count=count)
+            r_image.save("imgs_out/saved.png")
 
 
     elif mode == "video":

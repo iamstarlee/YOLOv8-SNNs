@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 from PIL import ImageDraw, ImageFont
 
-from nets.yolo import YoloBody
+from nets.yolo import YoloBody, Pose
 from utils.utils import (cvtColor, get_classes, preprocess_input,
                          resize_image, show_config)
 from utils.utils_bbox import DecodeBox
@@ -26,7 +26,7 @@ class YOLO(object):
         #   验证集损失较低不代表mAP较高，仅代表该权值在验证集上泛化性能较好。
         #   如果出现shape不匹配，同时要注意训练时的model_path和classes_path参数的修改
         #--------------------------------------------------------------------------#
-        "model_path"        : 'model_data/yolov8_s.pt',
+        "model_path"        : 'model_data/yolov8s-pose.pt',
         "classes_path"      : 'model_data/coco_classes.txt',
         #---------------------------------------------------------------------#
         #   输入图片的大小，必须为32的倍数。
@@ -100,7 +100,7 @@ class YOLO(object):
         #---------------------------------------------------#
         #   建立yolo模型，载入yolo模型的权重
         #---------------------------------------------------#
-        self.net    = YoloBody(self.input_shape, self.num_classes, self.phi)
+        self.net    = Pose(self.input_shape, self.num_classes, self.phi)
 
         # if torch.cuda.device_count() > 1:
         #     print(f"Let's use {torch.cuda.device_count()} GPUs!")
@@ -108,10 +108,13 @@ class YOLO(object):
         # else:
         #     device      = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         #     self.net.to(device)
-        
-        self.net.load_state_dict(torch.load(self.model_path))
+        # model = torch.load(self.model_path)['model']
+        # new_model = 'model_data/yolov8s-new.pt'
+        # torch.save(model.state_dict(), new_model)
+
+        self.net.load_state_dict(torch.load(self.model_path)['model'].state_dict(), strict=False)
         self.net    = self.net.fuse().eval()
-        print('{} model, and classes loaded.'.format(self.model_path))
+ 
         if not onnx:
             if self.cuda:
                 # self.net = nn.DataParallel(self.net)
@@ -148,7 +151,6 @@ class YOLO(object):
             #---------------------------------------------------------#
             #   将图像输入网络当中进行预测！
             #---------------------------------------------------------#
-            print("Yes")
             outputs = self.net(images)
             print("No")
             outputs = self.bbox_util.decode_box(outputs)
@@ -426,3 +428,37 @@ class YOLO(object):
 
         f.close()
         return 
+
+    def detect_image_pose(self, image, crop = False, count = False):
+        #---------------------------------------------------#
+        #   计算输入图片的高和宽
+        #---------------------------------------------------#
+        image_shape = np.array(np.shape(image)[0:2])
+        #---------------------------------------------------------#
+        #   在这里将图像转换成RGB图像，防止灰度图在预测时报错。
+        #   代码仅仅支持RGB图像的预测，所有其它类型的图像都会转化成RGB
+        #---------------------------------------------------------#
+        image       = cvtColor(image)
+        #---------------------------------------------------------#
+        #   给图像增加灰条，实现不失真的resize
+        #   也可以直接resize进行识别
+        #---------------------------------------------------------#
+        image_data  = resize_image(image, (self.input_shape[1], self.input_shape[0]), self.letterbox_image)
+        #---------------------------------------------------------#
+        #   添加上batch_size维度
+        #   h, w, 3 => 3, h, w => 1, 3, h, w
+        #---------------------------------------------------------#
+        image_data  = np.expand_dims(np.transpose(preprocess_input(np.array(image_data, dtype='float32')), (2, 0, 1)), 0)
+
+        with torch.no_grad():
+            images = torch.from_numpy(image_data)
+            if self.cuda:
+                images = images.cuda()
+            #---------------------------------------------------------#
+            #   将图像输入网络当中进行预测！
+            #---------------------------------------------------------#
+            outputs = self.net(images)
+            print(f"outputs[0] is {outputs[0].shape}")             
+            print(f"Hello")
+
+        return image

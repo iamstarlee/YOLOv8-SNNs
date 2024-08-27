@@ -152,6 +152,8 @@ class YoloBody(nn.Module):
         P5 = torch.cat([P4_downsample, feat3], 1)
         # 1024 * deep_mul + 512, 20, 20 => 1024 * deep_mul, 20, 20
         P5 = self.conv3_for_downsample2(P5)
+
+        kpt_x = [P3, P4, P5]
         #------------------------加强特征提取网络------------------------# 
         # P3 256, 80, 80
         # P4 512, 40, 40
@@ -174,4 +176,69 @@ class YoloBody(nn.Module):
         box, cls        = torch.cat([xi.view(shape[0], self.no, -1) for xi in x], 2).split((self.reg_max * 4, self.num_classes), 1)
         # origin_cls      = [xi.split((self.reg_max * 4, self.num_classes), 1)[1] for xi in x]
         dbox            = self.dfl(box)
-        return dbox, cls, x, self.anchors.to(dbox.device), self.strides.to(dbox.device)
+        return dbox, cls, x, self.anchors.to(dbox.device), self.strides.to(dbox.device), kpt_x
+
+class Pose(YoloBody):
+    def __init__(self, input_shape, num_classes, phi, pretrained=False):
+        super().__init__(input_shape, num_classes, phi, pretrained)
+        self.lynxi_compile = False
+        self.kpt_shape = (17, 3)
+        self.nc = 80
+        self.nk = self.kpt_shape[0] * self.kpt_shape[1]  # number of keypoints total
+        self.detect = YoloBody.forward
+
+        depth_dict          = {'n' : 0.33, 's' : 0.33, 'm' : 0.67, 'l' : 1.00, 'x' : 1.00,}
+        width_dict          = {'n' : 0.25, 's' : 0.50, 'm' : 0.75, 'l' : 1.00, 'x' : 1.25,}
+        deep_width_dict     = {'n' : 1.00, 's' : 1.00, 'm' : 0.75, 'l' : 0.50, 'x' : 0.50,}
+        dep_mul, wid_mul, deep_mul = depth_dict[phi], width_dict[phi], deep_width_dict[phi]
+        base_channels       = int(wid_mul * 64)  # 64
+        ch                  = [base_channels * 4, base_channels * 8, int(base_channels * 16 * deep_mul)]
+
+        c4 = max(ch[0] // 4, self.nk)
+        self.cv4 = nn.ModuleList(nn.Sequential(Conv(x, c4, 3), Conv(c4, c4, 3), nn.Conv2d(c4, self.nk, 1)) for x in ch)
+
+    def forward(self, x):
+        """Perform forward pass through YOLO model and return predictions."""
+        bs = x.shape[0]  # batch size
+        print(f"input is {x.shape}")
+        x = self.detect(self, x)
+        kpt_x = x[-1]
+        print(f"kpt_x[0] is {kpt_x[0].shape}")
+        print(f"kpt_x[1] is {kpt_x[1].shape}")
+        print(f"kpt_x[2] is {kpt_x[2].shape}")
+
+        kpt = torch.cat([self.cv4[i](kpt_x[i]).view(bs, self.nk, -1) for i in range(self.nl)], -1)  # (bs, 17*3, h*w)
+        print(f"kpt shape is {kpt.shape}")
+
+        if self.training:
+            return x, kpt
+        pred_kpt = self.kpts_decode(bs, kpt)
+        print(f"pred_kpt is {pred_kpt.shape}")
+        print(f"x[0] is {x[0].shape}")
+        if self.lynxi_compile:
+            return torch.cat([x[0], pred_kpt], 1)
+        # return torch.cat([x, pred_kpt], 1) if self.export else (torch.cat([x[0], pred_kpt], 1), (x[1], kpt))
+        return (torch.cat([x[0], pred_kpt], 1), (x[1], kpt))
+
+    def kpts_decode(self, bs, kpts):
+        """Decodes keypoints."""
+        ndim = self.kpt_shape[1]
+        # if self.export or self.lynxi_compile:  # required for TFLite export to avoid 'PLACEHOLDER_FOR_GREATER_OP_CODES' bug
+        #     y = kpts.view(bs, *self.kpt_shape, -1)
+        #     a = (y[:, :, :2] * 2.0 + (self.anchors - 0.5)) * self.strides
+        #     if ndim == 3:
+        #         a = torch.cat((a, y[:, :, 2:3].sigmoid()), 2)
+        #     return a.view(bs, self.nk, -1)
+        # else:
+        #     y = kpts.clone()
+        #     if ndim == 3:
+        #         y[:, 2::3].sigmoid_()  # inplace sigmoid
+        #     y[:, 0::ndim] = (y[:, 0::ndim] * 2.0 + (self.anchors[0] - 0.5)) * self.strides
+        #     y[:, 1::ndim] = (y[:, 1::ndim] * 2.0 + (self.anchors[1] - 0.5)) * self.strides
+        #     return y
+        y = kpts.clone()
+        if ndim == 3:
+            y[:, 2::3].sigmoid_()  # inplace sigmoid
+        y[:, 0::ndim] = (y[:, 0::ndim] * 2.0 + (self.anchors[0] - 0.5)) * self.strides
+        y[:, 1::ndim] = (y[:, 1::ndim] * 2.0 + (self.anchors[1] - 0.5)) * self.strides
+        return y
