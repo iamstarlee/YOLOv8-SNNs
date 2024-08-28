@@ -213,12 +213,16 @@ class Pose(YoloBody):
         if self.training:
             return x, kpt
         pred_kpt = self.kpts_decode(bs, kpt)
-        print(f"pred_kpt is {pred_kpt.shape}")
-        print(f"x[0] is {x[0].shape}")
+        print(f"pred_kpt shape is {pred_kpt.shape}")
+        print(f"dbox is {x[0].shape}")
+        print(f"cls is {x[1][:, :1, :].shape}") # 80 类中第一个是person
+        out_x = torch.cat((x[0], x[1][:, :1, :].sigmoid()), 1)
+        for num in x[2]:
+            print(f"num shape is {num.shape}")
         if self.lynxi_compile:
             return torch.cat([x[0], pred_kpt], 1)
         # return torch.cat([x, pred_kpt], 1) if self.export else (torch.cat([x[0], pred_kpt], 1), (x[1], kpt))
-        return (torch.cat([x[0], pred_kpt], 1), (x[1], kpt))
+        return (torch.cat([out_x, pred_kpt], 1), (x[2], kpt))
 
     def kpts_decode(self, bs, kpts):
         """Decodes keypoints."""

@@ -21,7 +21,7 @@ class SiLU(nn.Module):
     
 class Conv(nn.Module):
     # 标准卷积+标准化+激活函数
-    default_act = SiLU() 
+    default_act = nn.SiLU(inplace=True) 
     def __init__(self, c1, c2, k=1, s=1, p=None, g=1, d=1, act=True):
         super().__init__()
         self.conv   = nn.Conv2d(c1, c2, k, s, autopad(k, p, d), groups=g, dilation=d, bias=False)
