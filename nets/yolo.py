@@ -6,7 +6,17 @@ from nets.backbone import Backbone, C2f, Conv
 from nets.yolo_training import weights_init
 from utils.utils_bbox import make_anchors
 
-# https://github.com/bubbliiiing/yolov8-pytorch/blob/master/nets/yolo.py
+def dist2bbox(distance, anchor_points, xywh=True, dim=-1):
+    """Transform distance(ltrb) to box(xywh or xyxy)."""
+    lt, rb = distance.chunk(2, dim)
+    x1y1 = anchor_points - lt
+    x2y2 = anchor_points + rb
+    if xywh:
+        c_xy = (x1y1 + x2y2) / 2
+        wh = x2y2 - x1y1
+        return torch.cat((c_xy, wh), dim)  # xywh bbox
+    return torch.cat((x1y1, x2y2), dim)  # xyxy bbox
+
 def fuse_conv_and_bn(conv, bn):
     # 混合Conv2d + BatchNorm2d 减少计算量
     # Fuse Conv2d() and BatchNorm2d() layers https://tehnokv.com/posts/fusing-batchnorm-and-conv/
@@ -123,7 +133,7 @@ class YoloBody(nn.Module):
     def forward(self, x):
         #  backbone
         feat1, feat2, feat3 = self.backbone.forward(x)
-        
+
         #------------------------加强特征提取网络------------------------# 
         # 1024 * deep_mul, 20, 20 => 1024 * deep_mul, 40, 40
         P5_upsample = self.upsample(feat3)
@@ -166,7 +176,8 @@ class YoloBody(nn.Module):
         x = [P3, P4, P5]
         for i in range(self.nl):
             x[i] = torch.cat((self.cv2[i](x[i]), self.cv3[i](x[i])), 1)
-
+        for i in range(self.nl):
+            print(f"x[{i}] is {x[i].shape}")
         if self.shape != shape:
             self.anchors, self.strides = (x.transpose(0, 1) for x in make_anchors(x, self.stride, 0.5))
             self.shape = shape
@@ -175,7 +186,8 @@ class YoloBody(nn.Module):
         #                                           box self.reg_max * 4, 8400
         box, cls        = torch.cat([xi.view(shape[0], self.no, -1) for xi in x], 2).split((self.reg_max * 4, self.num_classes), 1)
         # origin_cls      = [xi.split((self.reg_max * 4, self.num_classes), 1)[1] for xi in x]
-        dbox            = self.dfl(box)
+        # dbox            = self.dfl(box)
+        dbox = dist2bbox(self.dfl(box), self.anchors.unsqueeze(0), xywh=True, dim=1) * self.strides
         return dbox, cls, x, self.anchors.to(dbox.device), self.strides.to(dbox.device), kpt_x
 
 class Pose(YoloBody):
@@ -215,8 +227,8 @@ class Pose(YoloBody):
         pred_kpt = self.kpts_decode(bs, kpt)
         print(f"pred_kpt shape is {pred_kpt.shape}")
         print(f"dbox is {x[0].shape}")
-        print(f"cls is {x[1][:, :1, :].shape}") # 80 类中第一个是person
-        out_x = torch.cat((x[0], x[1][:, :1, :].sigmoid()), 1)
+        print(f"cls is {x[1].shape}") # 80 类中第一个是person
+        out_x = torch.cat((x[0], x[1].sigmoid()), 1)
         for num in x[2]:
             print(f"num shape is {num.shape}")
         if self.lynxi_compile:

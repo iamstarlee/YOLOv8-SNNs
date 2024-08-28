@@ -100,8 +100,8 @@ if __name__ == "__main__":
             print('Open Error! Try again!')
         else:
             # r_image = yolo.detect_image(image, crop = crop, count=count)
-            r_image = yolo.detect_image_pose(image, crop = crop, count=count)
-            r_image.save("imgs_out/saved.png")
+            yolo.detect_image_pose(image, crop = crop, count=count)
+            
 
 
     elif mode == "video":
