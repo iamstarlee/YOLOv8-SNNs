@@ -176,8 +176,7 @@ class YoloBody(nn.Module):
         x = [P3, P4, P5]
         for i in range(self.nl):
             x[i] = torch.cat((self.cv2[i](x[i]), self.cv3[i](x[i])), 1)
-        for i in range(self.nl):
-            print(f"x[{i}] is {x[i].shape}")
+
         if self.shape != shape:
             self.anchors, self.strides = (x.transpose(0, 1) for x in make_anchors(x, self.stride, 0.5))
             self.shape = shape
@@ -215,22 +214,14 @@ class Pose(YoloBody):
         print(f"input is {x.shape}")
         x = self.detect(self, x)
         kpt_x = x[-1]
-        print(f"kpt_x[0] is {kpt_x[0].shape}")
-        print(f"kpt_x[1] is {kpt_x[1].shape}")
-        print(f"kpt_x[2] is {kpt_x[2].shape}")
-
         kpt = torch.cat([self.cv4[i](kpt_x[i]).view(bs, self.nk, -1) for i in range(self.nl)], -1)  # (bs, 17*3, h*w)
-        print(f"kpt shape is {kpt.shape}")
 
         if self.training:
             return x, kpt
         pred_kpt = self.kpts_decode(bs, kpt)
-        print(f"pred_kpt shape is {pred_kpt.shape}")
-        print(f"dbox is {x[0].shape}")
-        print(f"cls is {x[1].shape}") # 80 类中第一个是person
+
         out_x = torch.cat((x[0], x[1].sigmoid()), 1)
-        for num in x[2]:
-            print(f"num shape is {num.shape}")
+
         if self.lynxi_compile:
             return torch.cat([x[0], pred_kpt], 1)
         # return torch.cat([x, pred_kpt], 1) if self.export else (torch.cat([x[0], pred_kpt], 1), (x[1], kpt))
