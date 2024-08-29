@@ -60,8 +60,9 @@ def nms(
     nc = nc or (prediction.shape[1] - 4)  # number of classes
     nm = prediction.shape[1] - nc - 4  # number of masks
     mi = 4 + nc  # mask start index
+    print(f"prediciton are {prediction[:, 4:mi].amax(axis = 1)}")
     xc = prediction[:, 4:mi].amax(axis = 1) > conf_thres  # candidates
-
+    print(f"xc is {xc}")
     # Settings
     # min_wh = 2  # (pixels) minimum box width and height
     time_limit = 2.0 + max_time_img * bs  # seconds to quit after
@@ -81,7 +82,7 @@ def nms(
         # Apply constraints
         # x[((x[:, 2:4] < min_wh) | (x[:, 2:4] > max_wh)).any(1), 4] = 0  # width-height
         x = x[xc[xi]]  # confidence
-
+        print(f"xc[xi] is {xc[xi]}")
         # Cat apriori labels if autolabelling
         if labels and len(labels[xi]) and not rotated:
             lb = labels[xi]
@@ -96,9 +97,9 @@ def nms(
 
         # Detections matrix nx6 (xyxy, conf, cls)
         # For tensor, GPU
-        # print(f"x is {x.shape}")
-        # print(f"nc is {nc}")
-        # print(f"nm is {nm}")
+        print(f"x is {x.shape}")
+        print(f"nc is {nc}")
+        print(f"nm is {nm}")
         box, cls, mask = x.split((4, nc, nm), 1)
 
         if multi_label:

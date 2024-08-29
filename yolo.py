@@ -464,8 +464,8 @@ class YOLO(object):
             #---------------------------------------------------------#
             outputs = self.net(images)[0]
             print(f"outputs shape is {outputs.shape}")
-            result = nms(outputs, 0.25, 0.45)
-            
+            result = nms(outputs, 0.55, 0.45)
+
             results = []
             dummy_input = 'imgs_in/img0001.png'
             img = cv2.imread(dummy_input)
