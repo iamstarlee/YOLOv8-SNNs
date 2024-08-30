@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 from PIL import ImageDraw, ImageFont
 
-from nets.yolo import YoloBody, Pose
+from nets.yolo import YoloBody, PoseModel
 from utils.utils import (cvtColor, get_classes, preprocess_input,
                          resize_image, show_config)
 from utils.utils_bbox import DecodeBox
@@ -104,7 +104,7 @@ class YOLO(object):
         #---------------------------------------------------#
         #   建立yolo模型，载入yolo模型的权重
         #---------------------------------------------------#
-        self.net    = Pose(self.input_shape, self.num_classes, self.phi)
+        self.net    = PoseModel(self.input_shape, self.num_classes, self.phi)
         # print(f"net is {self.net}")
 
         # if torch.cuda.device_count() > 1:

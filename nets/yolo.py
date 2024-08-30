@@ -190,7 +190,7 @@ class YoloBody(nn.Module):
         dbox = dist2bbox(self.dfl(box), self.anchors.unsqueeze(0), xywh=True, dim=1) * self.strides
         return dbox, cls, x, self.anchors.to(dbox.device), self.strides.to(dbox.device), kpt_x
 
-class Pose(YoloBody):
+class PoseModel(YoloBody):
     def __init__(self, input_shape, num_classes, phi, pretrained=False):
         super().__init__(input_shape, num_classes, phi, pretrained)
         self.lynxi_compile = False
