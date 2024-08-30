@@ -48,11 +48,11 @@ class YOLO(object):
         #---------------------------------------------------------------------#
         #   只有得分大于置信度的预测框会被保留下来
         #---------------------------------------------------------------------#
-        "confidence"        : 0.5,
+        "confidence"        : 0.25,
         #---------------------------------------------------------------------#
         #   非极大抑制所用到的nms_iou大小
         #---------------------------------------------------------------------#
-        "nms_iou"           : 0.3,
+        "nms_iou"           : 0.45,
         #---------------------------------------------------------------------#
         #   该变量用于控制是否使用letterbox_image对输入图像进行不失真的resize，
         #   在多次测试后，发现关闭letterbox_image直接resize的效果更好
@@ -105,6 +105,7 @@ class YOLO(object):
         #   建立yolo模型，载入yolo模型的权重
         #---------------------------------------------------#
         self.net    = Pose(self.input_shape, self.num_classes, self.phi)
+        # print(f"net is {self.net}")
 
         # if torch.cuda.device_count() > 1:
         #     print(f"Let's use {torch.cuda.device_count()} GPUs!")
@@ -463,8 +464,8 @@ class YOLO(object):
             #   将图像输入网络当中进行预测！
             #---------------------------------------------------------#
             outputs = self.net(images)[0]
-            print(f"outputs shape is {outputs.shape}")
-            result = nms(outputs, 0.55, 0.45)
+            print(f"outputs shape is {outputs}")
+            result = nms(outputs, 0.25, 0.45)
 
             results = []
             dummy_input = 'imgs_in/img0001.png'

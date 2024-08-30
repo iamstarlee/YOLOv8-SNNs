@@ -133,6 +133,7 @@ class YoloBody(nn.Module):
     def forward(self, x):
         #  backbone
         feat1, feat2, feat3 = self.backbone.forward(x)
+        # print(f"Backbone is {self.backbone}")
 
         #------------------------加强特征提取网络------------------------# 
         # 1024 * deep_mul, 20, 20 => 1024 * deep_mul, 40, 40
