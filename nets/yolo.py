@@ -83,7 +83,6 @@ class YoloBody(nn.Module):
         #   512, 40, 40
         #   1024 * deep_mul, 20, 20
         #---------------------------------------------------#
-        print(f"base_channels is {base_channels}, base_depth is {base_depth}, and deep_mul is {deep_mul}")
         self.backbone   = Backbone(base_channels, base_depth, deep_mul, phi, pretrained=pretrained)
 
         #------------------------加强特征提取网络------------------------# 
@@ -213,7 +212,6 @@ class PoseModel(YoloBody):
     def forward(self, x):
         """Perform forward pass through YOLO model and return predictions."""
         bs = x.shape[0]  # batch size
-        print(f"input is {x.shape}")
         x = self.detect(self, x)
         kpt_x = x[-1]
         kpt = torch.cat([self.cv4[i](kpt_x[i]).view(bs, self.nk, -1) for i in range(self.nl)], -1)  # (bs, 17*3, h*w)

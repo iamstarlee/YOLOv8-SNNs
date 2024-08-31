@@ -15,6 +15,7 @@ from ultralytics.utils import LOGGER, ops
 from ultralytics.utils.metrics import batch_probiou
 from ultralytics.engine.results import Results
 from utils.nms import nms
+from nets.yolo_pose import YoloBody
 import cv2
 
 '''
@@ -104,8 +105,8 @@ class YOLO(object):
         #---------------------------------------------------#
         #   建立yolo模型，载入yolo模型的权重
         #---------------------------------------------------#
-        self.net    = PoseModel(self.input_shape, self.num_classes, self.phi)
-        # print(f"net is {self.net}")
+        self.net    = YoloBody()
+        print(f"net is {self.net}")
 
         # if torch.cuda.device_count() > 1:
         #     print(f"Let's use {torch.cuda.device_count()} GPUs!")

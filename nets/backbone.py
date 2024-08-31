@@ -1,6 +1,23 @@
 import torch
 import torch.nn as nn
 
+class DFL(nn.Module):
+    # DFL模块
+    # Distribution Focal Loss (DFL) proposed in Generalized Focal Loss https://ieeexplore.ieee.org/document/9792391
+    def __init__(self, c1=16):
+        super().__init__()
+        self.conv   = nn.Conv2d(c1, 1, 1, bias=False).requires_grad_(False)
+        x           = torch.arange(c1, dtype=torch.float)
+        self.conv.weight.data[:] = nn.Parameter(x.view(1, c1, 1, 1))
+        self.c1     = c1
+
+    def forward(self, x):
+        # bs, self.reg_max * 4, 8400
+        b, c, a = x.shape
+        # bs, 4, self.reg_max, 8400 => bs, self.reg_max, 4, 8400 => b, 4, 8400
+        # 以softmax的方式，对0~16的数字计算百分比，获得最终数字。
+        return self.conv(x.view(b, 4, self.c1, a).transpose(2, 1).softmax(1)).view(b, 4, a)
+        # return self.conv(x.view(b, self.c1, 4, a).softmax(1)).view(b, 4, a)
 
 def autopad(k, p=None, d=1):  
     # kernel, padding, dilation
@@ -26,7 +43,7 @@ class Conv(nn.Module):
         super().__init__()
         self.conv   = nn.Conv2d(c1, c2, k, s, autopad(k, p, d), groups=g, dilation=d, bias=False)
         self.bn     = nn.BatchNorm2d(c2, eps=0.001, momentum=0.03, affine=True, track_running_stats=True)
-        self.act    = self.default_act if act is True else act if isinstance(act, nn.Module) else nn.Identity()
+        self.act    = nn.ReLU() # self.default_act if act is True else act if isinstance(act, nn.Module) else nn.Identity()
 
     def forward(self, x):
         return self.act(self.bn(self.conv(x)))
@@ -63,6 +80,11 @@ class C2f(nn.Module):
         # 每进行一次残差结构都保留，然后堆叠在一起，密集残差
         y.extend(m(y[-1]) for m in self.m)
         return self.cv2(torch.cat(y, 1))
+        # x = self.cv1(x)
+        # x1, x2 = torch.chunk(x, 2, dim = 1)
+        # for m in self.m:
+        #     x = torch.cat((x, m(x2)), dim = 1)
+        # return self.cv2(x)
     
 class SPPF(nn.Module):
     # SPP结构，5、9、13最大池化核的最大池化。
