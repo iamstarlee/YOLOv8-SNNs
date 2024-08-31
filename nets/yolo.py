@@ -83,6 +83,7 @@ class YoloBody(nn.Module):
         #   512, 40, 40
         #   1024 * deep_mul, 20, 20
         #---------------------------------------------------#
+        print(f"base_channels is {base_channels}, base_depth is {base_depth}, and deep_mul is {deep_mul}")
         self.backbone   = Backbone(base_channels, base_depth, deep_mul, phi, pretrained=pretrained)
 
         #------------------------加强特征提取网络------------------------# 
