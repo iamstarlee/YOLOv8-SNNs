@@ -43,6 +43,7 @@ class Detect(nn.Module):
         self.nc = nc  # number of classes
         self.nl = len(ch)  # number of detection layers
         self.reg_max = 16  # DFL channels (ch[0] // 16 to scale 4/8/12/16/20 for n/s/m/l/x)
+        print(f"nc is {nc}, and self.reg_max is {self.reg_max}")
         self.no = nc + self.reg_max * 4  # number of outputs per anchor
         self.stride = torch.zeros(self.nl)  # strides computed during build
         c2, c3 = max((16, ch[0] // 4, self.reg_max * 4)), max(ch[0], self.nc)  # channels
@@ -102,9 +103,22 @@ class Pose(Detect):
 
         c4 = max(ch[0] // 4, self.nk)
         self.cv4 = nn.ModuleList(nn.Sequential(Conv(x, c4, 3), Conv(c4, c4, 3), nn.Conv2d(c4, self.nk, 1)) for x in ch)
+        
+        # backbone part
+        depth_dict          = {'n' : 0.33, 's' : 0.33, 'm' : 0.67, 'l' : 1.00, 'x' : 1.00,}
+        width_dict          = {'n' : 0.25, 's' : 0.50, 'm' : 0.75, 'l' : 1.00, 'x' : 1.25,}
+        deep_width_dict     = {'n' : 1.00, 's' : 1.00, 'm' : 0.75, 'l' : 0.50, 'x' : 0.50,}
+        dep_mul, wid_mul, deep_mul = depth_dict['s'], width_dict['s'], deep_width_dict['s']
+        base_channels = int(wid_mul * 64)
+        base_depth = max(round(dep_mul * 3), 1)
+        self.backbone = Backbone(base_channels, base_depth, deep_mul, phi='s', pretrained=False)
+
 
     def forward(self, x):
         """Perform forward pass through YOLO model and return predictions."""
+        feat1, feat2, feat3 = self.backbone.forward(x)
+        x = [feat1, feat2, feat3]
+
         bs = x[0].shape[0]  # batch size
         kpt = torch.cat([self.cv4[i](x[i]).view(bs, self.nk, -1) for i in range(self.nl)], -1)  # (bs, 17*3, h*w)
         x = self.detect(self, x)

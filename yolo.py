@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 from PIL import ImageDraw, ImageFont
 
-from nets.yolo import YoloBody, PoseModel
+from nets.yolo import PoseModel
 from utils.utils import (cvtColor, get_classes, preprocess_input,
                          resize_image, show_config)
 from utils.utils_bbox import DecodeBox
@@ -15,7 +15,7 @@ from ultralytics.utils import LOGGER, ops
 from ultralytics.utils.metrics import batch_probiou
 from ultralytics.engine.results import Results
 from utils.nms import nms
-from nets.yolo_pose import YoloBody
+from nets.yolo_pose import Pose
 import cv2
 
 '''
@@ -31,7 +31,7 @@ class YOLO(object):
         #   验证集损失较低不代表mAP较高，仅代表该权值在验证集上泛化性能较好。
         #   如果出现shape不匹配，同时要注意训练时的model_path和classes_path参数的修改
         #--------------------------------------------------------------------------#
-        "model_path"        : 'model_data/yolov8s-pose.pt',
+        "model_path"        : 'model_data/yolov8_s_backbone_weights.pt',
         "classes_path"      : 'model_data/coco_pose.txt',
         #---------------------------------------------------------------------#
         #   输入图片的大小，必须为32的倍数。
@@ -105,7 +105,7 @@ class YOLO(object):
         #---------------------------------------------------#
         #   建立yolo模型，载入yolo模型的权重
         #---------------------------------------------------#
-        self.net    = YoloBody()
+        self.net    = Pose()
         print(f"net is {self.net}")
 
         # if torch.cuda.device_count() > 1:
@@ -118,7 +118,8 @@ class YOLO(object):
         # new_model = 'model_data/yolov8s-new.pt'
         # torch.save(model.state_dict(), new_model)
 
-        self.net.load_state_dict(torch.load(self.model_path)['model'].state_dict(), strict=False)
+        # self.net.load_state_dict(torch.load(self.model_path)['model'].state_dict(), strict=True)
+        self.net.load_state_dict(torch.load(self.model_path), strict=True)
         self.net    = self.net.eval() # self.net.fuse().eval()
  
         if not onnx:
